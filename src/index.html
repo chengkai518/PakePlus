@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVG 彩色字体预览器</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--bg:#1a1a1c;--card:#26262a;--border:#3a3a40;--txt:#e8e8ec;--dim:#8a8a92;--accent:#d97706}
+  body{background:var(--bg);color:var(--txt);font-family:"Microsoft YaHei",system-ui,sans-serif;padding:32px 24px 60px;min-height:100vh;max-width:1120px;margin:0 auto}
+  html{background:var(--bg)}
+  h1{font-size:22px;font-weight:700;margin-bottom:4px}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:24px;line-height:1.6}
+  .toolbar{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:12px;color:var(--dim)}
+  .field input[type=text]{background:var(--card);border:1px solid var(--border);color:var(--txt);padding:8px 12px;border-radius:8px;font-size:14px;width:360px;max-width:100%}
+  .field input[type=text]:focus{outline:none;border-color:var(--accent)}
+  /* 预览文字输入框独占一行（拉宽到整行） */
+  .field.text-field{flex-basis:100%}
+  .field.text-field input[type=text]{width:100%}
+  .glyph-size{width:90px}
+  .btn{background:var(--accent);color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .2s}
+  .btn:hover{opacity:.85}
+  .btn.ghost{background:var(--card);border:1px solid var(--border);color:var(--txt)}
+  .btn.small{padding:6px 12px;font-size:12px}
+  .head-actions{display:flex;gap:8px;align-items:center}
+  .dropzone{border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;color:var(--dim);cursor:pointer;transition:border-color .2s,background .2s;margin-bottom:24px}
+  .dropzone.dragover{border-color:var(--accent);background:rgba(217,119,6,.06)}
+  .dropzone p{font-size:14px}
+  .dropzone .hint{font-size:12px;margin-top:4px;opacity:.7}
+  .file-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .file-tag{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;display:flex;align-items:center;gap:6px}
+  .file-tag .x{cursor:pointer;color:var(--dim);font-size:14px}
+  .file-tag .x:hover{color:#f87171}
+  #fonts{display:grid;grid-template-columns:1fr;gap:20px}
+  .font-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:0;overflow:hidden}
+  .font-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .font-name{font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .edit-hint{font-size:11px;color:var(--dim);opacity:0;transition:opacity .2s}
+  .font-name:hover .edit-hint{opacity:1}
+  .name-input{background:var(--bg);border:1px solid var(--accent);color:var(--txt);padding:4px 10px;border-radius:6px;font-size:15px;font-weight:700;width:220px}
+  .name-input:focus{outline:none}
+  .font-meta{font-size:12px;color:var(--dim);margin-top:2px}
+  .font-body{background:#fff;padding:24px 16px;overflow-x:auto}
+  .row{display:flex;justify-content:center;flex-wrap:wrap;gap:2px;padding:4px 0}
+  .glyph{display:inline-block;overflow:visible;flex-shrink:0}
+  .glyph svg{display:block;overflow:visible}
+  .empty{color:var(--dim);text-align:center;padding:48px;font-size:14px}
+  /* 图片批量调整 */
+  #images{margin-top:8px}
+  .image-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:0;overflow:hidden;margin-bottom:16px}
+  .image-body{background:#fff;padding:16px;overflow-x:auto;text-align:center}
+  .image-body img{display:inline-block;vertical-align:middle;background:repeating-conic-gradient(#f3f3f3 0% 25%, #fff 0% 50%) 50%/16px 16px;max-width:100%;max-height:420px;width:auto;height:auto}
+  .section-title{font-size:16px;font-weight:700;margin:36px 0 6px;display:flex;align-items:center;gap:8px}
+  .section-hint{color:var(--dim);font-size:12px;margin-bottom:14px;line-height:1.6}
+  .images-actions{display:flex;gap:8px;margin-top:4px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<h1>SVG 彩色字体预览器</h1>
+<div class="sub">拖入 .otf / .ttf 文件，自动解析内嵌 SVG 彩色字形并渲染。支持多文件。默认显示 0-9 + A-Z + 常见标点，可自定义文字。<br>⚠️ 字体里不存在的字符（如标点）会自动跳过不显示；卡片副标题会注明"X/Y 字符有彩色字形"。<br>💡 点击字体/图片卡片标题即可重命名；「下载预览图」导出整字体组合图（一张 PNG），「导出字符 ZIP」按字符逐个导出 PNG；顶部「批量下载预览图」/「批量下载字符图」可一次性导出全部字体。导出背景可在工具栏「导出背景」下拉切换（默认透明）。「宽度倍数」对字形本体做<b>拉伸式</b>横向缩放（默认 1 = 原始；&lt;1 字形向中心收窄变瘦、内容完整保留，&gt;1 向两侧拉伸变胖），画布尺寸与高度不变，预览与导出均生效。<br>🖼️ 下方「图片批量宽度调整」区也接受图片（.png/.jpg/.webp 等）：透明背景的字符图以字母本体中心为锚做同样的拉伸（画布尺寸不变）；可单张下载或打包 ZIP 批量导出。</div>
+
+<div class="dropzone" id="dropzone">
+  <p>📎 拖入字体文件或图片到这里，或点击选择</p>
+  <div class="hint">支持 .otf / .ttf（含 SVG 彩色表）、图片（.png / .jpg / .webp 等），可多选</div>
+  <div class="file-list" id="fileList"></div>
+  <input type="file" id="fileInput" accept=".otf,.ttf,image/*" multiple style="display:none">
+</div>
+
+<div class="toolbar">
+  <div class="field text-field">
+    <label>预览文字</label>
+    <input type="text" id="textInput" value="" placeholder="输入要预览的字符">
+  </div>
+  <div class="field">
+    <label>字号(px)</label>
+    <input type="number" id="sizeInput" class="glyph-size" value="128" min="24" max="256">
+  </div>
+  <div class="field">
+    <label>宽度倍数</label>
+    <input type="number" id="widthRatio" class="glyph-size" value="1" min="0.5" max="2" step="0.05" title="宽度倍数（拉伸式）：1=原始，<1 字形本体横向压缩变瘦（内容完整保留、平滑拉伸），>1 横向拉伸变胖（超出画布部分被裁切）。画布尺寸与高度不变。预览与导出均生效">
+  </div>
+  <div class="field">
+    <label>导出背景</label>
+    <select id="bgSelect" class="glyph-size">
+      <option value="transparent" selected>透明背景</option>
+      <option value="white">白色背景</option>
+    </select>
+  </div>
+  <button class="btn" id="renderBtn">渲染</button>
+  <button class="btn ghost" id="downloadPreviewAllBtn" title="将每个字体的组合预览图（一张 PNG/字体）打包为一个 ZIP">批量下载预览图</button>
+  <button class="btn" id="downloadCharsAllBtn" title="将所有字体的每个字符分别导出为 PNG，打包为一个 ZIP">批量下载字符图</button>
+  <button class="btn ghost" id="clearBtn">清空</button>
+</div>
+
+<div id="fonts">
+  <div class="empty">尚未加载字体文件</div>
+</div>
+
+<div class="section-title">🖼️ 图片批量宽度调整</div>
+<div class="section-hint">拖入或选择图片（背景透明的字符图效果最佳），按工具栏「宽度倍数」做<b>拉伸式</b>调整：自动识别图片中非透明的字母本体，以本体包围盒中心为锚做横向 scaleX —— &lt;1 整体收窄变瘦（内容完整保留，一个像素都不丢），&gt;1 整体拉伸变胖（超出画布部分被裁切）。画布尺寸与高度不变，与字体区逻辑完全一致，预览即导出效果。<br>注：无透明背景的图片（如 JPG）识别不出本体，退回整图水平拉伸。</div>
+<div class="images-actions">
+  <button class="btn" id="batchDownloadImagesBtn" disabled style="opacity:.5">批量下载调整后的图片</button>
+  <button class="btn ghost" id="clearImagesBtn" disabled style="opacity:.5">清空图片</button>
+</div>
+<div id="images">
+  <div class="empty">尚未加载图片</div>
+</div>
+
+<script>
+// ====== OTF 二进制解析器 ======
+
+/** 解析 SFNT 表目录 → {tag: {offset, length}} */
+function parseTableDir(buf) {
+  const v = new DataView(buf);
+  const sfVersion = v.getUint32(0);
+  const numTables = v.getUint16(4);
+  const tables = {};
+  for (let i = 0; i < numTables; i++) {
+    const base = 12 + i * 16;
+    const tag = String.fromCharCode(v.getUint8(base), v.getUint8(base+1), v.getUint8(base+2), v.getUint8(base+3));
+    const offset = v.getUint32(base + 8);
+    const length = v.getUint32(base + 12);
+    tables[tag] = { offset, length };
+  }
+  return tables;
+}
+
+/** 解析 cmap format 4 → {charCode: glyphID} */
+function parseCmap(buf, cmapOffset) {
+  const v = new DataView(buf, cmapOffset);
+  const numSubtables = v.getUint16(2);
+  let bestOffset = -1, bestFmt = 0;
+  for (let i = 0; i < numSubtables; i++) {
+    const base = 4 + i * 8;
+    const platformID = v.getUint16(base);
+    const encodingID = v.getUint16(base + 2);
+    const subOffset = v.getUint32(base + 4);
+    const fmt = v.getUint16(subOffset);
+    // 优先 format 12，其次 format 4
+    if (fmt === 12) { bestOffset = subOffset; bestFmt = 12; break; }
+    if (fmt === 4 && bestFmt !== 12) { bestOffset = subOffset; bestFmt = 4; }
+  }
+  if (bestFmt === 4) return parseCmapFmt4(buf, cmapOffset + bestOffset);
+  if (bestFmt === 12) return parseCmapFmt12(buf, cmapOffset + bestOffset);
+  return {};
+}
+
+function parseCmapFmt4(buf, offset) {
+  const v = new DataView(buf, offset);
+  const segCount = v.getUint16(6) / 2;
+  const map = {};
+  let p = 14;
+  const endCode = [], startCode = [], idDelta = [], idRangeOffset = [];
+  for (let i = 0; i < segCount; i++) { endCode.push(v.getUint16(p)); p += 2; }
+  p += 2; // reservedPad
+  for (let i = 0; i < segCount; i++) { startCode.push(v.getUint16(p)); p += 2; }
+  for (let i = 0; i < segCount; i++) { idDelta.push(v.getInt16(p)); p += 2; }
+  const roBase = p; // idRangeOffset 数组起始
+  for (let i = 0; i < segCount; i++) { idRangeOffset.push(v.getUint16(p)); p += 2; }
+  const glyphIdArrayBase = p;
+  for (let i = 0; i < segCount; i++) {
+    if (startCode[i] === 0xFFFF) continue;
+    for (let c = startCode[i]; c <= endCode[i]; c++) {
+      let gid;
+      if (idRangeOffset[i] === 0) {
+        gid = (c + idDelta[i]) & 0xFFFF;
+      } else {
+        const gidPos = roBase + i * 2 + idRangeOffset[i] + (c - startCode[i]) * 2;
+        gid = v.getUint16(gidPos);
+        if (gid !== 0) gid = (gid + idDelta[i]) & 0xFFFF;
+      }
+      map[c] = gid;
+    }
+  }
+  return map;
+}
+
+function parseCmapFmt12(buf, offset) {
+  const v = new DataView(buf, offset);
+  const numGroups = v.getUint32(12);
+  const map = {};
+  for (let i = 0; i < numGroups; i++) {
+    const base = 16 + i * 12;
+    const start = v.getUint32(base);
+    const end = v.getUint32(base + 4);
+    const startGID = v.getUint32(base + 8);
+    for (let c = start; c <= end; c++) map[c] = startGID + (c - start);
+  }
+  return map;
+}
+
+/** 解析 SVG 表 → {glyphID: svgString} */
+async function parseSvgTable(buf, svgOffset, svgLength) {
+  const v = new DataView(buf, svgOffset, svgLength);
+  const offsetToIndex = v.getUint32(2);
+  const numEntries = v.getUint16(offsetToIndex);
+  const docs = {};
+  const decoder = new TextDecoder('utf-8');
+  for (let i = 0; i < numEntries; i++) {
+    const ep = offsetToIndex + 2 + i * 12;
+    const startGID = v.getUint16(ep);
+    const endGID = v.getUint16(ep + 2);
+    const docOffset = v.getUint32(ep + 4);
+    const docLength = v.getUint32(ep + 8);
+    let bytes = new Uint8Array(buf, svgOffset + docOffset, docLength);
+    // gzip 检测
+    if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+      try {
+        const ds = new DecompressionStream('gzip');
+        const stream = new Blob([bytes]).stream().pipeThrough(ds);
+        bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+      } catch(e) {}
+    }
+    let str = decoder.decode(bytes);
+    const s = str.indexOf('<svg');
+    if (s < 0) continue;
+    let svg = str.substring(s);
+    // 补全闭合标签（文档闭合标签在下一条 entry 开头）
+    if (svg.indexOf('</svg>') < 0) svg += '</g></svg>';
+    // 扩展 viewBox 以容纳负 y 坐标（字形在基线上方）
+    svg = svg.replace(/viewBox="([^"]*)"/, (m, vb) => {
+      const parts = vb.split(/[\s,]+/).map(Number);
+      if (parts.length === 4) {
+        const [x, y, w, h] = parts;
+        // 向上扩展 900 单位以容纳上升部
+        return `viewBox="${x} ${y - 900} ${w} ${h + 900}"`;
+      }
+      return m;
+    });
+    for (let gid = startGID; gid <= endGID; gid++) docs[gid] = svg;
+  }
+  return docs;
+}
+
+/** 完整解析字体文件 → {name, family, displayName, charToGID, gidToSvg}
+ *  displayName 为用户可改的显示名，初始=短名，点击卡片标题即可重命名 */
+async function parseFont(file) {
+  const buf = await file.arrayBuffer();
+  const tables = parseTableDir(buf);
+  let charToGID = {};
+  if (tables['cmap']) charToGID = parseCmap(buf, tables['cmap'].offset);
+  let gidToSvg = {};
+  if (tables['SVG ']) gidToSvg = await parseSvgTable(buf, tables['SVG '].offset, tables['SVG '].length);
+  // 从 name 表取字体名
+  let family = '', full = file.name, short = file.name;
+  if (tables['name']) {
+    try {
+      const nm = parseFontName(buf, tables['name'].offset, tables['name'].length);
+      if (nm) {
+        family = nm.family;
+        full = nm.full || full;
+        short = nm.short || full;
+      }
+    } catch(e) {}
+  }
+  return { fileName: file.name, fontName: full, family, short, displayName: short, charToGID, gidToSvg };
+}
+
+/** 解析 name 表 → {family, full, short}
+ *  family = nameID 1 各平台候选中最短者（纯家族名，如 "Christmas Bundle 17"）
+ *  full   = nameID 4 完整字体名（Windows 平台优先，如 "Christmas Bundle 17 Elf"）
+ *  short  = 去掉家族前缀后的变体名（如 "Elf"），无变体时等同 full */
+function parseFontName(buf, offset, length) {
+  const v = new DataView(buf, offset, length);
+  const count = v.getUint16(2);
+  const stringOffset = v.getUint16(4);
+  const decode = (plat, enc, bytes) => {
+    if (plat === 3 || (plat === 0 && enc === 3)) return new TextDecoder('utf-16be').decode(bytes);
+    if (plat === 1) return new TextDecoder('latin1').decode(bytes);
+    if (plat === 0) return new TextDecoder('utf-16be').decode(bytes);
+    return new TextDecoder('utf-8').decode(bytes);
+  };
+  const families = [], fulls = [];
+  for (let i = 0; i < count; i++) {
+    const base = 6 + i * 12;
+    const platformID = v.getUint16(base);
+    const encodingID = v.getUint16(base + 2);
+    const nameID = v.getUint16(base + 6);
+    if (nameID !== 1 && nameID !== 4) continue;
+    const strLen = v.getUint16(base + 8);
+    const strOffset = v.getUint16(base + 10);
+    const bytes = new Uint8Array(buf, offset + stringOffset + strOffset, strLen);
+    let name = decode(platformID, encodingID, bytes);
+    if (name && /[\u4e00-\u9fff]/.test(name)) continue; // 编码选错，忽略
+    if (nameID === 1) families.push({ name, plat: platformID });
+    if (nameID === 4) fulls.push({ name, plat: platformID });
+  }
+  // family：取 nameID 1 中最短者（纯家族名通常最短）
+  let family = null;
+  for (const r of families) if (!family || r.name.length < family.name.length) family = r;
+  // full：Windows 平台优先，其次任意平台第一条
+  const win = fulls.find(r => r.plat === 3);
+  const full = (win || fulls[0] || { name: '' }).name;
+  if (!family && !full) return null;
+  // short：完整名以"家族名 + 空格"开头 → 取变体名
+  let short;
+  if (full && family && full.startsWith(family.name + ' ')) short = full.slice(family.name.length + 1);
+  else short = full || family.name;
+  return { family: family ? family.name : '', full, short };
+}
+
+// ====== 渲染 ======
+
+const loadedFonts = [];
+const loadedImages = []; // {id, file, fileName, displayName, objectURL, img, naturalW, naturalH}
+
+/** 读取宽度倍数（拉伸式 scaleX：<1 字形收窄变瘦，>1 拉伸变胖），默认 1 */
+function getWidthRatio() {
+  const el = document.getElementById('widthRatio');
+  const v = parseFloat(el && el.value);
+  return (isFinite(v) && v > 0) ? v : 1;
+}
+
+function renderAll() {
+  const text = document.getElementById('textInput').value;
+  const size = parseInt(document.getElementById('sizeInput').value) || 128;
+  const ratio = getWidthRatio();
+  const container = document.getElementById('fonts');
+  if (loadedFonts.length === 0) {
+    container.innerHTML = '<div class="empty">尚未加载字体文件</div>';
+    return;
+  }
+  container.innerHTML = '';
+  for (const font of loadedFonts) {
+    const card = document.createElement('div');
+    card.className = 'font-card';
+    const charCount = text.split('').filter(ch => {
+      const gid = font.charToGID[ch.charCodeAt(0)];
+      return gid && font.gidToSvg[gid];
+    }).length;
+    card.innerHTML = `
+      <div class="font-head">
+        <div>
+          <div class="font-name" data-id="${font.id}" title="点击重命名">${font.displayName}<span class="edit-hint">✎</span></div>
+          <div class="font-meta">${font.fileName}${font.fontName && font.fontName !== font.short ? ' · ' + font.fontName : ''} · ${charCount}/${text.length} 字符有彩色字形</div>
+        </div>
+        <div class="head-actions">
+          <button class="btn ghost small preview-btn" data-id="${font.id}" title="导出整字体组合预览图（一张 PNG）">下载预览图</button>
+          <button class="btn ghost small dl-btn" data-id="${font.id}" title="将该字体每个字符分别导出为 PNG，打包 ZIP">导出字符 ZIP</button>
+        </div>
+      </div>
+      <div class="font-body"><div class="row" id="row-${font.id}"></div></div>`;
+    container.appendChild(card);
+    // 点击名字 → 变输入框重命名（不依赖任何预置映射，任何字体都可改）
+    const nameEl = card.querySelector('.font-name');
+    nameEl.onclick = () => startRename(nameEl, font);
+    // 单字体下载
+    const dlBtn = card.querySelector('.dl-btn');
+    dlBtn.onclick = async () => {
+      dlBtn.disabled = true; dlBtn.textContent = '导出中…';
+      try {
+        const dlText = document.getElementById('textInput').value;
+        const dlSize = parseInt(document.getElementById('sizeInput').value) || 128;
+        const entries = [];
+        const seen = new Set();
+        for (const ch of dlText) {
+          if (ch.trim() === '' || seen.has(ch)) continue; // 跳过空白和重复字符
+          seen.add(ch);
+          const blob = await charToPngBlob(font, ch, dlSize);
+          if (!blob) continue; // 该字符无彩色字形，跳过
+          entries.push({
+            name: safeBaseName(font.displayName) + '_' + safeCharName(ch) + '.png',
+            data: new Uint8Array(await blob.arrayBuffer())
+          });
+        }
+        if (entries.length === 0) { alert('该字体在当前预览文字中没有彩色字形'); }
+        else { downloadBlob(buildZip(entries), safeBaseName(font.displayName) + '_字符图.zip'); }
+      } catch(e) { console.error('导出失败:', e); alert('导出失败：' + e.message); }
+      finally { dlBtn.disabled = false; dlBtn.textContent = '导出字符 ZIP'; }
+    };
+    const previewBtn = card.querySelector('.preview-btn');
+    previewBtn.onclick = async () => {
+      previewBtn.disabled = true; previewBtn.textContent = '导出中…';
+      try {
+        const pvText = document.getElementById('textInput').value;
+        const pvSize = parseInt(document.getElementById('sizeInput').value) || 128;
+        const blob = await fontToPngBlob(font, pvText, pvSize);
+        downloadBlob(blob, safeBaseName(font.displayName) + '_预览图.png');
+      } catch(e) { console.error('导出失败:', e); alert('导出失败：' + e.message); }
+      finally { previewBtn.disabled = false; previewBtn.textContent = '下载预览图'; }
+    };
+    const row = card.querySelector('.row');
+    const dpr = (window.devicePixelRatio && window.devicePixelRatio > 1) ? 2 : 1;
+    for (const ch of text) {
+      const gid = font.charToGID[ch.charCodeAt(0)];
+      // 字体里没有彩色字形的字符（含标点/空格）直接跳过，不显示、不占位
+      if (!(gid && font.gidToSvg[gid])) continue;
+      const span = document.createElement('span');
+      span.className = 'glyph';
+      span.style.width = size + 'px';
+      span.style.height = size + 'px';
+      row.appendChild(span);
+      // 宽度调整为拉伸式 scaleX（像素层）：先栅格化再处理，预览=导出效果
+      svgStringToCanvas(buildSingleCharSvg(font, ch, size * dpr), ratio).then(c => {
+        const img = new Image();
+        img.src = c.toDataURL('image/png');
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.draggable = false;
+        span.appendChild(img);
+      }).catch(e => console.error('字形渲染失败:', ch, e));
+    }
+  }
+}
+
+// ====== 重命名 ======
+
+/** 点击字体名 → 替换为输入框；Enter/失焦保存，Esc 取消 */
+function startRename(nameEl, font) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'name-input';
+  input.value = font.displayName;
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+  const commit = () => {
+    const v = input.value.trim();
+    font.displayName = v || font.short;
+    const div = document.createElement('div');
+    div.className = 'font-name';
+    div.dataset.id = font.id;
+    div.title = '点击重命名';
+    div.innerHTML = `${font.displayName}<span class="edit-hint">✎</span>`;
+    div.onclick = () => startRename(div, font);
+    input.replaceWith(div);
+  };
+  input.onblur = commit;
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { input.value = font.displayName; input.blur(); }
+  };
+}
+
+// ====== 导出：PNG / ZIP ======
+
+/** SVG 字符串 → 栅格化 canvas，并应用拉伸式宽度调整（squeezeCanvasH）
+ *  注意：不能用 img.decode() —— Chrome 对 SVG 图片的 decode() 会报
+ *  "The source image cannot be decoded"（SVG 走渲染器而非光栅解码器），
+ *  必须用 onload 回调等待图片就绪 */
+async function svgStringToCanvas(svgStr, ratio) {
+  const url = URL.createObjectURL(new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' }));
+  try {
+    const img = await loadImageEl(url);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    return squeezeCanvasH(canvas, ratio);
+  } finally { URL.revokeObjectURL(url); }
+}
+
+/** canvas → PNG Blob */
+function canvasToPngBlob(canvas) {
+  return new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('canvas 导出失败')), 'image/png'));
+}
+
+/** 需要白底时，把透明画布平铺到白色画布上（宽度调整在透明层做，最后才合成白底） */
+function flattenOnWhiteIfNeeded(canvas, bg) {
+  if (bg !== 'white') return canvas;
+  const c2 = document.createElement('canvas');
+  c2.width = canvas.width; c2.height = canvas.height;
+  const ctx = c2.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, c2.width, c2.height);
+  ctx.drawImage(canvas, 0, 0);
+  return c2;
+}
+
+/** SVG 字符串 → PNG Blob（先栅格化 + 拉伸式宽度调整，再按 bgSelect 决定透明/白底） */
+async function svgStringToPngBlob(svgStr) {
+  const bg = (document.getElementById('bgSelect') || {}).value || 'transparent';
+  const canvas = await svgStringToCanvas(svgStr, getWidthRatio());
+  return canvasToPngBlob(flattenOnWhiteIfNeeded(canvas, bg));
+}
+
+/** 组合预览图（一个字体一张）：逐字符栅格化 + 拉伸式宽度调整后拼成网格
+ *  每个字形以自身内容中心为锚独立拉伸，必须在单字形层处理
+ *  （若对整张网格图处理，锚点会被网格整体带偏） */
+async function fontToPngBlob(font, text, size) {
+  const ratio = getWidthRatio();
+  const bg = (document.getElementById('bgSelect') || {}).value || 'transparent';
+  const cols = 10, gap = 8, pad = 14;
+  const items = [];
+  for (const ch of text) {
+    if (ch.trim() === '') continue;
+    const gid = font.charToGID[ch.charCodeAt(0)];
+    if (gid && font.gidToSvg[gid]) items.push(ch);
+  }
+  const cell = size + gap;
+  const rows = Math.max(1, Math.ceil(items.length / cols));
+  const W = cols * cell + pad * 2 - gap;
+  const H = rows * cell + pad * 2 - gap;
+  const out = document.createElement('canvas');
+  out.width = W; out.height = H;
+  const ctx = out.getContext('2d');
+  if (bg === 'white') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); }
+  for (let i = 0; i < items.length; i++) {
+    const c = await svgStringToCanvas(buildSingleCharSvg(font, items[i], size), ratio);
+    ctx.drawImage(c, pad + (i % cols) * cell, pad + Math.floor(i / cols) * cell);
+  }
+  return canvasToPngBlob(out);
+}
+
+/** 字形本体横向拉伸/压缩（拉伸式瘦/胖 —— 不消除任何内容）：
+ *  以非透明内容包围盒的中心为锚点，对整幅内容做 scaleX(ratio)：
+ *  - 内容完整保留，用平滑插值做出「被拉伸」的观感，一个像素都不丢
+ *  - 画布尺寸与高度完全不变：ratio<1 字形本体向中心收窄（两侧留白变多），
+ *    ratio>1 向两侧变宽（超出画布的部分被裁切）
+ *  ratio=1 或全透明（无可锚定的内容）时原样返回 */
+function squeezeCanvasH(srcCanvas, ratio) {
+  if (!isFinite(ratio) || ratio === 1) return srcCanvas;
+  const w = srcCanvas.width, h = srcCanvas.height;
+  if (!w || !h) return srcCanvas;
+  // 内容包围盒（alpha>=128）：只用来确定拉伸锚点，不裁掉任何像素
+  let minX = w, maxX = -1;
+  try {
+    const data = srcCanvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+    for (let i = 0; i < w * h; i++) {
+      if (data[i * 4 + 3] >= 128) {
+        const x = i % w;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+      }
+    }
+  } catch (e) { return srcCanvas; }
+  if (maxX < 0) return srcCanvas; // 全透明
+  const cx = (minX + maxX + 1) / 2; // 锚点：内容包围盒中心
+  const out = document.createElement('canvas');
+  out.width = w; out.height = h;
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.translate(cx, 0);
+  ctx.scale(ratio, 1);
+  ctx.translate(-cx, 0);
+  ctx.drawImage(srcCanvas, 0, 0);
+  return out;
+}
+
+/** 临时挂载到 DOM，测量字形真实内容包围盒（user units），用于裁剪导出 */
+function getGlyphBBox(svgString) {
+  const container = document.createElement('div');
+  container.style.cssText = 'position:absolute;left:-99999px;top:0;';
+  container.innerHTML = svgString;
+  document.body.appendChild(container);
+  const svg = container.querySelector('svg');
+  let bbox = null;
+  try {
+    if (svg && svg.getBBox) {
+      const b = svg.getBBox();
+      if (b.width > 0 && b.height > 0) bbox = { x: b.x, y: b.y, width: b.width, height: b.height };
+    }
+  } catch (e) {}
+  document.body.removeChild(container);
+  return bbox;
+}
+
+/** 单字符 → 裁剪到字形实际范围并居中的正方形 SVG（导出用） */
+function buildSingleCharSvg(font, ch, size) {
+  const gid = font.charToGID[ch.charCodeAt(0)];
+  if (!(gid && font.gidToSvg[gid])) return null;
+  const raw = font.gidToSvg[gid];
+  const bbox = getGlyphBBox(raw);
+  let vbX, vbY, vbW, vbH;
+  if (bbox) {
+    // 按字形实际范围裁剪 + 12% padding
+    const pad = Math.max(bbox.width, bbox.height) * 0.12;
+    vbX = bbox.x - pad;
+    vbY = bbox.y - pad;
+    vbW = bbox.width + pad * 2;
+    vbH = bbox.height + pad * 2;
+  } else {
+    // 回退：用 svg 自带 viewBox（parseSvgTable 已扩展 900 容纳上升部）
+    const m = raw.match(/viewBox="([^"]*)"/);
+    const parts = m ? m[1].split(/[\s,]+/).map(Number) : [0, 0, 100, 100];
+    vbX = parts[0]; vbY = parts[1]; vbW = parts[2] || 100; vbH = parts[3] || 100;
+  }
+  // 正方形画布，保持比例居中
+  const maxDim = Math.max(vbW, vbH);
+  const scale = size / maxDim;
+  const drawW = vbW * scale;
+  const drawH = vbH * scale;
+  const offsetX = (size - drawW) / 2;
+  const offsetY = (size - drawH) / 2;
+  let s = raw
+    .replace(/\s+id="[^"]*"/g, '')
+    .replace(/\s+xmlns="[^"]*"/g, '')
+    .replace(/\s+viewBox="[^"]*"/g, '');
+  s = s.replace(/^<svg/, `<svg x="${offsetX}" y="${offsetY}" width="${drawW}" height="${drawH}" viewBox="${vbX} ${vbY} ${vbW} ${vbH}"`);
+  // 宽度调整（拉伸式 scaleX）在栅格化后的像素层做，见 svgStringToCanvas → squeezeCanvasH
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${s}</svg>`;
+}
+
+/** 单字符 → PNG Blob */
+async function charToPngBlob(font, ch, size) {
+  const svgStr = buildSingleCharSvg(font, ch, size);
+  if (!svgStr) return null;
+  return svgStringToPngBlob(svgStr);
+}
+
+/** 文件名安全化：字母数字原样，常见标点用可读名，其余用 uXXXX */
+const CHAR_NAME_MAP = {
+  '.': 'dot', ',': 'comma', '!': 'exclaim', '?': 'question',
+  '"': 'dquote', "'": 'quote', '@': 'at', '#': 'hash', '&': 'amp',
+  '%': 'percent', '$': 'dollar', '+': 'plus', '-': 'minus', '*': 'asterisk',
+  '/': 'slash', '\\': 'backslash', '=': 'equal', ':': 'colon', ';': 'semicolon',
+  '(': 'lparen', ')': 'rparen', '[': 'lbracket', ']': 'rbracket',
+  '{': 'lbrace', '}': 'rbrace', '<': 'lt', '>': 'gt', '_': 'underscore',
+  '|': 'pipe', '~': 'tilde', '`': 'backtick', '^': 'caret'
+};
+function safeCharName(ch) {
+  if (/[A-Za-z0-9]/.test(ch)) return ch;
+  if (CHAR_NAME_MAP[ch]) return CHAR_NAME_MAP[ch];
+  return 'u' + ch.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0');
+}
+function safeBaseName(name) {
+  return (name || 'font').replace(/[\\/:*?"<>|]/g, '_').trim() || 'font';
+}
+
+function loadImageEl(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('SVG 图片解码失败'));
+    img.src = url;
+  });
+}
+
+function downloadBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+
+// ====== 手写 ZIP（stored 无压缩，零依赖） ======
+
+let crcTable = null;
+function crc32(u8) {
+  if (!crcTable) {
+    crcTable = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      crcTable[n] = c >>> 0;
+    }
+  }
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < u8.length; i++) c = crcTable[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+/** entries: [{name, data: Uint8Array}] → ZIP Blob */
+function buildZip(entries) {
+  const enc = new TextEncoder();
+  const local = [], central = [];
+  let offset = 0;
+  for (const e of entries) {
+    const nameBytes = enc.encode(e.name);
+    const data = e.data;
+    const crc = crc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true);
+    lh.setUint16(6, 0x0800, true);
+    lh.setUint16(8, 0, true);
+    lh.setUint32(14, crc, true);
+    lh.setUint32(18, data.length, true);
+    lh.setUint32(22, data.length, true);
+    lh.setUint16(26, nameBytes.length, true);
+    local.push(lh.buffer, nameBytes.buffer, data.buffer);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true);
+    ch.setUint16(4, 20, true);
+    ch.setUint16(6, 20, true);
+    ch.setUint16(8, 0x0800, true);
+    ch.setUint32(16, crc, true);
+    ch.setUint32(20, data.length, true);
+    ch.setUint32(24, data.length, true);
+    ch.setUint16(28, nameBytes.length, true);
+    ch.setUint32(42, offset, true);
+    central.push(ch.buffer, nameBytes.buffer);
+    offset += 30 + nameBytes.length + data.length;
+  }
+  const centralSize = central.reduce((a, b) => a + b.byteLength, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, entries.length, true);
+  end.setUint16(10, entries.length, true);
+  end.setUint32(12, centralSize, true);
+  end.setUint32(16, offset, true);
+  return new Blob([...local, ...central, end.buffer], { type: 'application/zip' });
+}
+
+// ====== 事件 ======
+
+let fontIdCounter = 0;
+let imageIdCounter = 0;
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+async function handleFiles(files) {
+  const list = Array.from(files);
+  let fontsLoaded = 0, imagesLoaded = 0;
+  for (const file of list) {
+    if (/\.(otf|ttf)$/i.test(file.name)) {
+      try {
+        const parsed = await parseFont(file);
+        parsed.id = ++fontIdCounter;
+        loadedFonts.push(parsed);
+        fontsLoaded++;
+      } catch(e) {
+        console.error('字体解析失败:', file.name, e);
+        alert('字体解析失败：' + file.name + '\n' + e.message);
+      }
+    } else if (/^image\//i.test(file.type) || /\.(png|jpe?g|gif|webp|bmp)$/i.test(file.name)) {
+      try {
+        await loadImageFile(file);
+        imagesLoaded++;
+      } catch(e) {
+        console.error('图片加载失败:', file.name, e);
+        alert('图片加载失败：' + file.name + '\n' + e.message);
+      }
+    } else {
+      console.warn('跳过不支持的文件:', file.name);
+    }
+  }
+  if (fontsLoaded) { updateFileList(); renderAll(); }
+  if (imagesLoaded) renderImages();
+}
+
+// ====== 图片批量宽度调整 ======
+
+/** 扫描像素，找出非透明内容（字母本体）的包围盒
+ *  背景:透明 PNG 时返回 {x,y,width,height}，作为字形胖瘦缩放的锚点
+ *  图片完全不透明（如 JPG）时返回 null → 退回整图拉伸模式 */
+function getImageContentBBox(img) {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (!w || !h) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  try { ctx.drawImage(img, 0, 0); } catch(e) { return null; }
+  let data;
+  try { data = ctx.getImageData(0, 0, w, h).data; } catch(e) { return null; }
+  let minX = w, minY = h, maxX = -1, maxY = -1, sawTransparent = false;
+  for (let y = 0; y < h; y++) {
+    const rowBase = y * w;
+    for (let x = 0; x < w; x++) {
+      const a = data[(rowBase + x) * 4 + 3];
+      if (a > 8) { // 内容像素
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+      if (a < 250) sawTransparent = true; // 存在透明像素（说明背景透明）
+    }
+  }
+  if (maxX < 0 || !sawTransparent) return null; // 全透明 或 全不透明（无背景可识别）
+  return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+}
+
+async function loadImageFile(file) {
+  const url = URL.createObjectURL(file);
+  const img = await new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('图片解码失败')); };
+    im.src = url;
+  });
+  loadedImages.push({
+    id: ++imageIdCounter,
+    file,
+    fileName: file.name,
+    displayName: file.name.replace(/\.[^.]+$/, ''),
+    objectURL: url,
+    img,
+    naturalW: img.naturalWidth,
+    naturalH: img.naturalHeight,
+    bbox: getImageContentBBox(img), // 字母本体包围盒（透明背景时非空）
+  });
+}
+
+async function renderImages() {
+  const container = document.getElementById('images');
+  const batchBtn = document.getElementById('batchDownloadImagesBtn');
+  const clearBtn = document.getElementById('clearImagesBtn');
+  if (loadedImages.length === 0) {
+    container.innerHTML = '<div class="empty">尚未加载图片</div>';
+    batchBtn.disabled = true; batchBtn.style.opacity = '.5';
+    clearBtn.disabled = true; clearBtn.style.opacity = '.5';
+    return;
+  }
+  batchBtn.disabled = false; batchBtn.style.opacity = '1';
+  clearBtn.disabled = false; clearBtn.style.opacity = '1';
+  const ratio = getWidthRatio();
+  container.innerHTML = '';
+  for (const item of loadedImages) {
+    // 元信息：透明背景 → 拉伸式宽度调整（内容本体锚定，画布/高度不变）；不透明 → 整图拉伸
+    let meta;
+    if (ratio === 1) {
+      meta = `原 ${item.naturalW}×${item.naturalH}`;
+    } else if (item.bbox) {
+      meta = `原 ${item.naturalW}×${item.naturalH} · 字形本体拉伸${ratio > 1 ? '变胖' : '收窄'} × ${ratio}（拉伸式，等高，画布尺寸不变）`;
+    } else {
+      meta = `原 ${item.naturalW}×${item.naturalH} · 无透明背景，整图拉伸 → ${Math.max(1, Math.round(item.naturalW * ratio))}×${item.naturalH}`;
+    }
+    // 预览：ratio≠1 时直接渲染处理后的画布（所见即所得），ratio=1 用原图
+    const previewURL = (ratio !== 1) ? buildImageCanvas(item, ratio).toDataURL('image/png') : item.objectURL;
+    const card = document.createElement('div');
+    card.className = 'image-card';
+    card.innerHTML = `
+      <div class="font-head">
+        <div>
+          <div class="font-name" data-id="${item.id}" title="点击重命名">${escapeHtml(item.displayName)}<span class="edit-hint">✎</span></div>
+          <div class="font-meta">${meta}</div>
+        </div>
+        <div class="head-actions">
+          <button class="btn ghost small img-dl-btn" data-id="${item.id}">下载调整后图片</button>
+          <button class="btn ghost small img-del-btn" data-id="${item.id}">删除</button>
+        </div>
+      </div>
+      <div class="image-body">
+        <img src="${previewURL}" alt="" draggable="false">
+      </div>
+    `;
+    container.appendChild(card);
+    card.querySelector('.font-name').onclick = (e) => startImageRename(e.currentTarget, item);
+    card.querySelector('.img-dl-btn').onclick = async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true; btn.textContent = '导出中…';
+      try {
+        const blob = await imageToPngBlob(item, getWidthRatio());
+        downloadBlob(blob, safeBaseName(item.displayName) + '_x' + getWidthRatio() + '.png');
+      } catch(err) { console.error(err); alert('导出失败：' + err.message); }
+      finally { btn.disabled = false; btn.textContent = '下载调整后图片'; }
+    };
+    card.querySelector('.img-del-btn').onclick = () => {
+      URL.revokeObjectURL(item.objectURL);
+      const i = loadedImages.findIndex(x => x.id === item.id);
+      if (i >= 0) loadedImages.splice(i, 1);
+      renderImages();
+    };
+  }
+}
+
+function startImageRename(nameEl, item) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'name-input';
+  input.value = item.displayName;
+  nameEl.replaceWith(input);
+  input.focus(); input.select();
+  const commit = () => {
+    const v = input.value.trim();
+    item.displayName = v || item.fileName.replace(/\.[^.]+$/, '');
+    const div = document.createElement('div');
+    div.className = 'font-name';
+    div.title = '点击重命名';
+    div.innerHTML = `${escapeHtml(item.displayName)}<span class="edit-hint">✎</span>`;
+    div.onclick = () => startImageRename(div, item);
+    input.replaceWith(div);
+  };
+  input.onblur = commit;
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { input.value = item.displayName; input.blur(); }
+  };
+}
+
+/** 图片 → 宽度调整后的画布（拉伸式）
+ *  透明背景（有 bbox）：以字母本体包围盒中心为锚做 scaleX —— 内容完整保留，
+ *    画布尺寸与高度完全不变（<1 收窄变瘦、两侧留白，>1 变胖、超出部分裁切）
+ *  无透明背景（JPG 等）或 ratio=1：ratio≠1 时退回整图水平拉伸（画布宽度变化） */
+function buildImageCanvas(item, ratio) {
+  const w = item.naturalW, h = item.naturalH;
+  const bg = (document.getElementById('bgSelect') || {}).value || 'transparent';
+  if (ratio !== 1 && item.bbox) {
+    // 拉伸式：本体中心为锚，画布尺寸/高度都不变
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    const cx = item.bbox.x + item.bbox.width / 2;
+    ctx.translate(cx, 0);
+    ctx.scale(ratio, 1);
+    ctx.translate(-cx, 0);
+    ctx.drawImage(item.img, 0, 0);
+    return flattenOnWhiteIfNeeded(canvas, bg);
+  }
+  const outW = (ratio !== 1 && !item.bbox) ? Math.max(1, Math.round(w * ratio)) : w;
+  const canvas = document.createElement('canvas');
+  canvas.width = outW; canvas.height = h;
+  canvas.getContext('2d').drawImage(item.img, 0, 0, outW, h);
+  return flattenOnWhiteIfNeeded(canvas, bg);
+}
+
+/** 单张图片 → 调整后的 PNG Blob（透明或白底由 bgSelect 决定） */
+async function imageToPngBlob(item, ratio) {
+  const canvas = buildImageCanvas(item, ratio);
+  return await new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('canvas 导出失败')), 'image/png'));
+}
+
+async function batchDownloadImages() {
+  if (loadedImages.length === 0) { alert('请先拖入图片'); return; }
+  const btn = document.getElementById('batchDownloadImagesBtn');
+  btn.disabled = true; btn.textContent = '打包中…';
+  try {
+    const ratio = getWidthRatio();
+    const entries = [];
+    for (const item of loadedImages) {
+      const blob = await imageToPngBlob(item, ratio);
+      entries.push({
+        name: safeBaseName(item.displayName) + '_x' + ratio + '.png',
+        data: new Uint8Array(await blob.arrayBuffer())
+      });
+    }
+    const d = new Date();
+    const ts = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+    downloadBlob(buildZip(entries), `SVG图片宽度调整_${ts}.zip`);
+  } catch(e) { console.error(e); alert('批量导出失败：' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '批量下载调整后的图片'; }
+}
+
+document.getElementById('batchDownloadImagesBtn').onclick = batchDownloadImages;
+document.getElementById('clearImagesBtn').onclick = () => {
+  if (!confirm('确认清空所有已加载的图片？')) return;
+  loadedImages.forEach(i => URL.revokeObjectURL(i.objectURL));
+  loadedImages.length = 0;
+  renderImages();
+};
+
+function updateFileList() {
+  const list = document.getElementById('fileList');
+  list.innerHTML = '';
+  for (const f of loadedFonts) {
+    const tag = document.createElement('div');
+    tag.className = 'file-tag';
+    tag.innerHTML = `${f.fileName} <span class="x" data-id="${f.id}">×</span>`;
+    list.appendChild(tag);
+  }
+  list.querySelectorAll('.x').forEach(x => {
+    x.onclick = () => {
+      const id = parseInt(x.dataset.id);
+      const idx = loadedFonts.findIndex(f => f.id === id);
+      if (idx >= 0) loadedFonts.splice(idx, 1);
+      updateFileList();
+      renderAll();
+    };
+  });
+}
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+dropzone.onclick = () => fileInput.click();
+fileInput.onchange = (e) => handleFiles(e.target.files);
+dropzone.ondragover = (e) => { e.preventDefault(); dropzone.classList.add('dragover'); };
+dropzone.ondragleave = () => dropzone.classList.remove('dragover');
+dropzone.ondrop = (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  handleFiles(e.dataTransfer.files);
+};
+document.getElementById('renderBtn').onclick = renderAll;
+// 默认预览文字：字母数字 + 常见标点（标点若无彩色字形会显示为灰框占位）
+document.getElementById('textInput').value = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ,.?!\"\'@#&%$+-*/=:;()[]{}<>_';
+// 批量下载：每个字体一张 PNG，按字体文件名命名，打包 ZIP
+/** 通用批量导出：管理按钮状态、时间戳、空结果提示，makeEntries 返回 [{name, data}] */
+async function runBatchExport(btn, label, makeEntries, zipNameTpl) {
+  if (loadedFonts.length === 0) { alert('请先拖入字体文件'); return; }
+  btn.disabled = true; btn.textContent = '打包中…';
+  try {
+    const text = document.getElementById('textInput').value;
+    const size = parseInt(document.getElementById('sizeInput').value) || 128;
+    const entries = await makeEntries(text, size);
+    if (entries.length === 0) { alert('没有可导出的彩色字形'); }
+    else {
+      const d = new Date();
+      const ts = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+      downloadBlob(buildZip(entries), zipNameTpl.replace('{ts}', ts));
+    }
+  } catch(e) { console.error(e); alert('批量导出失败：' + e.message); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+// 批量下载预览图：每个字体一张组合预览图
+document.getElementById('downloadPreviewAllBtn').onclick = () => {
+  const btn = document.getElementById('downloadPreviewAllBtn');
+  runBatchExport(btn, '批量下载预览图', async (text, size) => {
+    const entries = [];
+    for (const font of loadedFonts) {
+      const hasAny = text.split('').some(ch => { const gid = font.charToGID[ch.charCodeAt(0)]; return gid && font.gidToSvg[gid]; });
+      if (!hasAny) continue; // 该字体在当前文字里无彩色字形，跳过
+      const blob = await fontToPngBlob(font, text, size);
+      entries.push({ name: safeBaseName(font.displayName) + '_预览图.png', data: new Uint8Array(await blob.arrayBuffer()) });
+    }
+    return entries;
+  }, 'SVG预览图_{ts}.zip');
+};
+// 批量下载字符图：所有字体的每个字符逐张导出
+document.getElementById('downloadCharsAllBtn').onclick = () => {
+  const btn = document.getElementById('downloadCharsAllBtn');
+  runBatchExport(btn, '批量下载字符图', async (text, size) => {
+    const entries = [];
+    for (const font of loadedFonts) {
+      const seen = new Set();
+      for (const ch of text) {
+        if (ch.trim() === '' || seen.has(ch)) continue; // 跳过空白和重复字符
+        seen.add(ch);
+        const blob = await charToPngBlob(font, ch, size);
+        if (!blob) continue; // 该字符无彩色字形，跳过
+        entries.push({
+          name: safeBaseName(font.displayName) + '_' + safeCharName(ch) + '.png',
+          data: new Uint8Array(await blob.arrayBuffer())
+        });
+      }
+    }
+    return entries;
+  }, 'SVG字符图_{ts}.zip');
+};
+document.getElementById('textInput').onkeydown = (e) => { if (e.key === 'Enter') renderAll(); };
+document.getElementById('sizeInput').onchange = renderAll;
+document.getElementById('widthRatio').onchange = () => { renderAll(); renderImages(); };
+document.getElementById('clearBtn').onclick = () => {
+  loadedFonts.length = 0;
+  updateFileList();
+  renderAll();
+};
+</script>
+</body>
+</html>
